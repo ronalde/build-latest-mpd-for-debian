@@ -3,8 +3,9 @@ README for build-latest-mpd-for-debian
 
 The `make-debian-mpd-chroot` bash script creates a debian chroot,
 which is started as a virtual machine and automagically builds the
-latest mpd packaged for Debian. The resulting package is copied back
-from the virtual machine to the directory where the script was started.
+latest [mpd (music player daemon)](http://www.musicpd.org/) package
+for Debian. The resulting package is copied back from the virtual
+machine to the directory where the script was started.
 
 It is intended to be run on a non-debian system, like arch. Users of
 debian and ubuntu may be better of using
