@@ -1,5 +1,7 @@
-README for build-latest-mpd-for-debian version $Id:$
-====================================================
+README for build-latest-mpd-for-debian 
+======================================
+
+ * version: $Id$
 
 The `make-debian-mpd-chroot` bash script creates a virgin debian chroot,
 which is started as a virtual machine and automagically builds the

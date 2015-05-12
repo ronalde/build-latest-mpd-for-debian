@@ -24,7 +24,7 @@
 ## `make-debian-mpd-chroot' and set to be automagically started by
 ## adding it to root's ~/.profile.
 
-version=$Id:$
+version=$Id$
 
 DEBCHROOT_MIRROR="${DEBCHROOT_MIRROR:-http://ftp.debian.org/debian}"
 ## or use local apt cacher like approx

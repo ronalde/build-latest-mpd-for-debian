@@ -32,7 +32,7 @@
 ##
 ## Also see `README'
 
-version=$Id:$
+version=$Id$
 
 LANG=C
 
