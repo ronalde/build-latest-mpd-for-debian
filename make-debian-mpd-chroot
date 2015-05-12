@@ -32,6 +32,8 @@
 ##
 ## Also see `README'
 
+version=$Id:$
+
 LANG=C
 
 appname="build-latest-mpd-for-debian"
