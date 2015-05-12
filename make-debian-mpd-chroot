@@ -1,0 +1,153 @@
+#!/usr/bin/env bash
+## 
+## `make-debian-mpd-chroot' is a script to build the latest
+## version of mpd for debian inside a temporary debian chroot on a
+## non-debian build environment/host, like arch.
+##
+##  Copyright (C) 2015 Ronald van Engelen <ronalde+github@lacocina.nl>
+##  This program is free software: you can redistribute it and/or modify
+##  it under the terms of the GNU General Public License as published by
+##  the Free Software Foundation, either version 3 of the License, or
+##  (at your option) any later version.
+##
+##  This program is distributed in the hope that it will be useful,
+##  but WITHOUT ANY WARRANTY; without even the implied warranty of
+##  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+##  GNU General Public License for more details.
+##
+##  You should have received a copy of the GNU General Public License
+##  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+##
+## The script, helpers and documentation are published at 
+## https://github.com/ronalde/build-latest-mpd-for-debian
+## 
+## Apart from a fairly recent versions of debootstrap and systemd, no
+## additional packages are required for the build environment. When
+## you use debian or ubuntu as your build enviroment, you should have
+## a look at git-buildpackage.
+##
+## The script depends on the external script
+## `build-latest-debian-mpd-package', which should be available in the
+## same directory as the file your currently viewing.
+##
+## Also see `README'
+
+LANG=C
+
+appname="mpdbuilder"
+#debchroot_mirror="http://ftp.nl.debian.org/debian"
+debchroot_mirror="http://localnet:9999/debian"
+debchroot_version="jessie"
+debchroot_arch="amd64"
+debchroot_variant="buildd"
+debchroot_additional_packages="devscripts,coreutils,dpkg-dev,apt-utils,openssh-client,libwww-perl"
+chrootscript_name=build-latest-debian-mpd-package
+chrootscript_path=/usr/local/bin
+tempchroot_template="${appname}.${debchroot_version}.${debchroot_arch}.XXXX"
+
+scriptname="$(basename ${0})"
+
+function create_chroot {
+    ## download and install a virgin debian chroot
+    printf "**  performing debootstrap in \`%s' ... " "${debchroot_targetdir}" 2>&1 | tee -a ${logfile}
+    res="$(debootstrap \
+	--arch=${debchroot_arch} \
+	--include="${debchroot_additional_packages}" \
+	--variant=${debchroot_variant} \
+	${debchroot_version} \
+	${debchroot_targetdir} \
+	"${debchroot_mirror}")"  2>&1 >> ${logfile}
+    if [[ $? -ne 0 ]]; then
+	printf "ERROR:\n%s\n" "${res}"  2>&1 | tee -a ${logfile}
+	exit 1
+    else
+	printf "done.\n"   2>&1 | tee -a ${logfile}
+    fi
+
+}
+
+
+function install_chrootscript {
+    printf "**  installing the mpd builder script \`%s' inside the chroot ... " "${chrootscript_name}"  2>&1 | tee -a ${logfile}
+    res=$(install --mode=0555 "${chrootscript_name}" "${debchroot_targetdir}${chrootscript_path}")
+    if [[ $? -ne 0 ]]; then
+	printf "ERROR:\n%s\n" "${res}"  2>&1 | tee -a ${logfile}
+	exit 1
+    else
+	printf "done.\n"  2>&1 | tee -a ${logfile}
+    fi
+    dotprofile="${debchroot_targetdir}/root/.profile"
+    printf "**  insert the script in to \`%s' ... " "${dotprofile}" 2>&1 | tee -a ${logfile}
+    echo "${chrootscript_path}/${chrootscript_name}" > ${dotprofile}
+    printf "done.\n"  2>&1 | tee -a ${logfile}
+
+    printf "**  setting autologin for root inside chroot ... " 2>&1 | tee -a ${logfile}
+    console_getty=${debchroot_targetdir}/lib/systemd/system/console-getty.service
+    sed -i 's#^ExecStart.*#ExecStart=-/sbin/agetty --autologin root --noclear --keep-baud console 115200,38400,9600 $TERM#' "${console_getty}"
+    printf "done.\n"  2>&1 | tee -a ${logfile}
+    
+}
+
+function spawn_chroot {
+    ## boot the chroot using systemd-nspawn, wait for it to halt and
+    ## try to copy the created mpd package in the chroot to the build
+    ## environment; eg. this host.
+    
+    printf "**  spawning the chroot.\n" 2>&1 | tee -a ${logfile}
+    ## boot the chroot
+    systemd-nspawn -bD "${debchroot_targetdir}"
+    printf "**  done spawning.\n" 2>&1 | tee -a ${logfile}
+    ## get the created mpd package
+    package_path="$(find "${debchroot_targetdir}/root" -name 'mpd_*.deb')"
+    if [[ $? -ne 0 ]]; then
+	printf "error: could not find a package in \`%s'.\n" "${package_path}" 2>&1 | tee -a ${logfile}
+    else
+	package_name="$(basename "${package_path}")"
+	res=$(cp ${package_path} ./)
+	if [[ $? -ne 0 ]]; then
+	    printf "error: could not copy package from \`%s'.\n" 2>&1 | tee -a ${logfile}
+	    printf "inspect the chroot by running: \`%s'\n" "systemd-nspawn -bD "${debchroot_targetdir}"" 2>&1 | tee -a ${logfile}
+	else
+	    printf "**  all done; the resulting package is copied locally to:\n%s\n\n" "./${package_name}" 2>&1 | tee -a ${logfile}
+	    printf "(you may delete the chroot \`%s')\n" "./${debchroot_targetdir}" 2>&1 | tee -a ${logfile}
+	fi
+    fi
+       
+}
+
+## main
+
+if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
+    ## we're being sourced (for testing purposes); do nothing
+    ## store the temporary directory
+    debchroot_targetdir="$1"
+    if [[ -z "${debchroot_targetdir}" ]]; then
+	printf "sourcing is only useful when you specify an existing chroot.\n"
+    else
+	printf "script \`%s' is being sourced\n" "${BASH_SOURCE[0]}"
+	if [[ ! -d "${debchroot_targetdir}" ]]; then
+	    printf "warning: specified debchroot_targetdir \`%s' does not exist.\n" "${debchroot_targetdir}"
+	else
+	    printf "using exisiting debchroot_targetdir \`%s'\n" "${debchroot_targetdir}"
+	    install_chrootscript
+	fi
+    fi
+else
+    ## we're being run
+    logfile=$(mktemp --tmpdir "${scriptname}.XXXX")
+
+    ## start logging
+    printf "starting %s at %s\n" "${scriptname}" "$(date)" 2>&1 | tee ${logfile}
+    printf "**  logging to \`%s'.\n" "${logfile}" 2>&1 | tee -a ${logfile}
+    printf "**  creating a new temporary debchroot_targetdir.\n"  2>&1 | tee -a ${logfile}
+    debchroot_targetdir="$(mktemp -d ${tempchroot_template})"
+    if [[ $? -ne 0 ]]; then
+	printf "ERROR:\n%s\n" "${debchroot_targetdir}" 2>&1 | tee -a ${logfile}
+    else
+	printf "**  debchroot_targetdir is \`%s'.\n" "${debchroot_targetdir}"  2>&1 | tee -a ${logfile}
+	create_chroot && \
+	    install_chrootscript && \
+	    spawn_chroot
+    fi
+fi
+
