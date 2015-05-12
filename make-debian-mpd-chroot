@@ -26,10 +26,6 @@
 ## environment. When you use debian or ubuntu as your build
 ## enviroment, you should have a look at git-buildpackage.
 ##
-## The script depends on the external script
-## `build-latest-debian-mpd-package', which should be available in the
-## same directory as the file your currently viewing.
-##
 ## Also see `README'
 
 LANG=C
