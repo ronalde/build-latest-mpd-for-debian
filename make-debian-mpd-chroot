@@ -35,18 +35,18 @@
 LANG=C
 
 appname="build-latest-mpd-for-debian"
-debchroot_mirror="http://ftp.debian.org/debian"
+DEBCHROOT_MIRROR="${DEBCHROOT_MIRROR:-http://ftp.debian.org/debian}"
 ## or use local apt cacher like approx
-#debchroot_mirror="http://localnet:9999/debian"
-debchroot_version="jessie"
-debchroot_arch="amd64"
+#DEBCHROOT_MIRROR="http://localnet:9999/debian"
+DEBCHROOT_VERSION="${DEBCHROOT_VERSION:-jessie}"
+DEBCHROOT_ARCH="${DEBCHROOT_ARCH:-amd64}"
 debchroot_variant="buildd"
 debchroot_additional_packages="devscripts,coreutils,dpkg-dev,apt-utils,openssh-client,libwww-perl"
 helper_script_name=build-latest-debian-mpd-package
 helper_script_downloadpath=/tmp
 helper_script_downloadtarget=${helper_script_downloadpath}/${helper_script_name}
 helper_script_path=/usr/local/bin
-tempchroot_template="${appname}.${debchroot_version}.${debchroot_arch}.XXXX"
+tempchroot_template="${appname}.${DEBCHROOT_VERSION}.${DEBCHROOT_ARCH}.XXXX"
 url="https://raw.githubusercontent.com/ronalde/${appname}/master/${helper_script_name}"
 
 scriptname="$(basename ${0})"
@@ -56,12 +56,12 @@ function create_chroot {
     
     printf "**  performing debootstrap in \`%s' ... " "${debchroot_targetdir}" 2>&1 | tee -a ${logfile}
     res="$(debootstrap \
-	--arch=${debchroot_arch} \
+	--arch=${DEBCHROOT_ARCH} \
 	--include="${debchroot_additional_packages}" \
 	--variant=${debchroot_variant} \
-	${debchroot_version} \
+	${DEBCHROOT_VERSION} \
 	${debchroot_targetdir} \
-	"${debchroot_mirror}" >> ${logfile} 2>&1)" 
+	"${DEBCHROOT_MIRROR}" >> ${logfile} 2>&1)" 
     if [[ $? -ne 0 ]]; then
 	printf "ERROR:\n%s\n" "${res}" 2>&1 | tee -a ${logfile}
 	exit 1
@@ -90,6 +90,15 @@ function install_helper_script {
 	exit 1
     else  
 	printf "done.\n" 2>&1 | tee -a ${logfile}
+
+	printf "*** populate sources.list inside the chroot ... " 2>&1 | tee -a ${logfile}
+	debchroot_sourceslist="${debchroot_targetdir}/etc/apt/sources.list"
+	printf "deb %s %s main\n" \
+	       "${DEBCHROOT_MIRROR}" "${DEBCHROOT_VERSION}" > ${debchroot_sourceslist}
+	printf "deb-src %s %s main\n" \
+	       "${DEBCHROOT_MIRROR}" "${DEBCHROOT_VERSION}" >> ${debchroot_sourceslist}
+	printf "done.\n" 2>&1 | tee -a ${logfile}
+	
 	printf "**  installing the mpd builder script \`%s' inside the chroot ... " \
 	       "${helper_script_name}" 2>&1 | tee -a ${logfile}
 	

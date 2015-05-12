@@ -24,10 +24,10 @@
 ## `make-debian-mpd-chroot' and set to be automagically started by
 ## adding it to root's ~/.profile.
 
-debchroot_mirror="http://ftp.debian.org/debian"
+DEBCHROOT_MIRROR="${DEBCHROOT_MIRROR:-http://ftp.debian.org/debian}"
 ## or use local apt cacher like approx
-#debchroot_mirror="http://localnet:9999/debian"
-debchroot_version="jessie"
+#DEBCHROOT_MIRROR="http://localnet:9999/debian"
+DEBCHROOT_VERSION="${DEBCHROOT_VERSION:-jessie}"
 ## regular expression to match a mpd version
 mpd_version_re="[0-9]*\.[0-9]*\.[0-9]*"
 ## regexp to match uscan output line 
@@ -39,11 +39,8 @@ logfile=$(mktemp --tmpdir "${scriptname}.XXXX")
 printf "\nstarting %s inside chroot at %s\n" "${scriptname}" "$(date)" 2>&1 | tee -a ${logfile}
 printf "*** logging to \`%s'.\n" "${logfile}" 2>&1 | tee -a ${logfile}
 
-printf "*** populate sources.list.\n" 2>&1 | tee -a ${logfile}
-printf "deb %s %s main\n" "${debchroot_mirror}" "${debchroot_version}"  > /etc/apt/sources.list
-printf "deb-src %s %s main\n" "${debchroot_mirror}" "${debchroot_version}" >> /etc/apt/sources.list
 printf "*** update binary and source packages ... " 2>&1 | tee -a ${logfile}
-res=$(apt-get update >> ${logfile}  2>&1 )
+res=$(apt-get update >> ${logfile}  2>&1)
 printf "done.\n"  2>&1 | tee -a ${logfile}
 printf "*** installing build dependencies for mpd ... " 2>&1 | tee -a ${logfile}
 res=$(apt-get -y build-dep mpd >> ${logfile} 2>&1)
