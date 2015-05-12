@@ -75,12 +75,11 @@ function download_helper_script {
     
     wget -q "${url}" -O "${helper_script_downloadtarget}" >> ${logfile} 2>&1 || \
 	curl -s -k -o "${helper_script_downloadtarget}" "${url}" >> ${logfile} 2>&1
-
 }
 
 function install_helper_script {
-    ## install the helper script inside the chroot, add it to profile
-    ## and set autologon
+    ## set up sources.list inside the chroot, install the helper
+    ## script, add it to root's profile and set autologon
 
     printf "downloading helper script from repository ..." 2>&1 | tee -a ${logfile}
     res=$(download_helper_script)
@@ -123,9 +122,9 @@ function install_helper_script {
 }
 
 function spawn_chroot {
-    ## boot the chroot using systemd-nspawn, wait for it to halt and
-    ## try to copy the created mpd package in the chroot to the build
-    ## environment; eg. this host.
+    ## boot the chroot using systemd-nspawn and wait for it to execute
+    ## the helper script and finally halt, after which try to copy the
+    ## created mpd package from the chroot to the current directory.
     
     printf "**  spawning the chroot.\n" 2>&1 | tee -a ${logfile} 
     ## boot the chroot
@@ -156,7 +155,6 @@ function spawn_chroot {
 
 if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
     ## we're being sourced (for testing purposes); do nothing
-    ## store the temporary directory
     debchroot_targetdir="$1"
     if [[ -z "${debchroot_targetdir}" ]]; then
 	printf "sourcing is only useful when you specify an existing chroot.\n"
@@ -187,4 +185,3 @@ else
 	    spawn_chroot
     fi
 fi
-
