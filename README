@@ -52,12 +52,20 @@ chroot to automatically logon the root user. This way, after the
 script starts the virtual machine with the chroot as its environment,
 the helper script is automatically run.
 
-The helper script makes optimal usage of the debian package building
-environment and the work done by the package maintainer. Using
-`uscan`, `debian/watch`, `uupdate` and the [official git repository
-for package
+The main script then uses the [lightweight virtualization features of
+systemd](https://wiki.archlinux.org/index.php/Systemd-nspawn) to spawn
+a temporary host.
+
+The helper script inside the chroot makes optimal usage of the [debian
+package building
+environment](https://www.debian.org/doc/manuals/maint-guide/) and the
+work done by the package maintainer. Using
+[`uscan`](http://manpages.debian.org/cgi-bin/man.cgi?query=uscan),
+[`debian/watch`](https://wiki.debian.org/debian/watch), `uupdate` and
+the [official git repository for package
 maintenance](http://anonscm.debian.org/cgit/pkg-mpd/pkg-mpd.git), the
-latest mpd source packages are downloaded and build using `debbuild`.
+latest mpd source packages are downloaded and build using
+[`debbuild`](https://www.debian.org/doc/manuals/maint-guide/build.en.html#debuild).
 
 When `debbuild` is successful, the helper scripts shuts the virtual
 machine down, and the main script copies the generated binary mpd
