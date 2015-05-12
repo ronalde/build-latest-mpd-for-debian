@@ -22,16 +22,16 @@ environment. Besides
 which is installed by default in any modern linux distribution, it
 only depends on `debootstrap`.
 
-Arch users may install that from the [Arch User
-Repository](https://aur.archlinux.org/packages/debootstrap/), while
-Fedora users can use their [`debootstrap`
-package](https://admin.fedoraproject.org/pkgdb/package/debootstrap/).
+Availability of `debootstrap` on foreign distros:
+
+* [`debootstrap` in the Arch User Repository](https://aur.archlinux.org/packages/debootstrap/)
+* [`debootstrap` package for Fedora](https://admin.fedoraproject.org/pkgdb/package/debootstrap/).
 
 
 Usage
 -----
 
-Download both the scripts and run `make-debian-mpd-chroot` as root (or using sudo):
+Download the main script and run `make-debian-mpd-chroot` as root (or using sudo):
 
 ```bash
 export scriptname="make-debian-mpd-chroot"
