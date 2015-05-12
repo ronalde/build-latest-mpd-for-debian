@@ -24,8 +24,9 @@ only depends on `debootstrap`.
 
 Availability of `debootstrap` on foreign distros:
 
-* [`debootstrap` in the Arch User Repository](https://aur.archlinux.org/packages/debootstrap/)
-* [`debootstrap` package for Fedora](https://admin.fedoraproject.org/pkgdb/package/debootstrap/).
+* arch: [`debootstrap`](https://aur.archlinux.org/packages/debootstrap/) (in the Arch User Repository)
+* fedora/centos/redhat: [`debootstrap`](https://admin.fedoraproject.org/pkgdb/package/debootstrap/)
+* gentoo: [`debootstrap`](https://packages.gentoo.org/package/dev-util/debootstrap)
 
 
 Usage
