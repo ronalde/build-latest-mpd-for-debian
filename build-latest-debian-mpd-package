@@ -24,9 +24,9 @@
 ## `make-debian-mpd-chroot' and set to be automagically started by
 ## adding it to root's ~/.profile.
 
-#debchroot_mirror="http://ftp.nl.debian.org/debian"
+debchroot_mirror="http://ftp.debian.org/debian"
 ## or use local apt cacher like approx
-debchroot_mirror="http://localnet:9999/debian"
+#debchroot_mirror="http://localnet:9999/debian"
 debchroot_version="jessie"
 ## regular expression to match a mpd version
 mpd_version_re="[0-9]*\.[0-9]*\.[0-9]*"
@@ -36,32 +36,34 @@ scriptname="$(basename ${0})"
 logfile=$(mktemp --tmpdir "${scriptname}.XXXX")
 
 ## start logging
-printf "starting %s at %s\n" "${scriptname}" "$(date)" 2>&1 | tee ${logfile}
+printf "\nstarting %s inside chroot at %s\n" "${scriptname}" "$(date)" 2>&1 | tee -a ${logfile}
 printf "*** logging to \`%s'.\n" "${logfile}" 2>&1 | tee -a ${logfile}
 
 printf "*** populate sources.list.\n" 2>&1 | tee -a ${logfile}
 printf "deb %s %s main\n" "${debchroot_mirror}" "${debchroot_version}"  > /etc/apt/sources.list
 printf "deb-src %s %s main\n" "${debchroot_mirror}" "${debchroot_version}" >> /etc/apt/sources.list
 printf "*** update binary and source packages ... " 2>&1 | tee -a ${logfile}
-res=$(apt-get update  2>&1 >> ${logfile})
+res=$(apt-get update >> ${logfile}  2>&1 )
 printf "done.\n"  2>&1 | tee -a ${logfile}
 printf "*** installing build dependencies for mpd ... " 2>&1 | tee -a ${logfile}
-res=$(apt-get -y build-dep mpd  2>&1 >> ${logfile})
+res=$(apt-get -y build-dep mpd >> ${logfile} 2>&1)
 if [[ $? -ne 0 ]]; then
     printf "ERROR: \n\`%s'\n" "${res}" 2>&1 | tee -a ${logfile}
 else
     printf "done.\n" 2>&1 | tee -a ${logfile}
     printf "*** installing current mpd source package ... " 2>&1 | tee -a ${logfile}
-    res=$(apt-get source mpd 2>&1 >> ${logfile})
+    res=$(apt-get source mpd >> ${logfile} 2>&1)
     if [[ $? -ne 0 ]]; then
 	printf "ERROR: \n\`%s'\n" "${res}"
     else
 	printf "done.\n"
 	mpd_current_source=$(ls -d mpd-* 2>&1 | tee -a ${logfile})
 	mpd_current_version=${mpd_current_source//mpd-/}
-	printf "*** current debian version of mpd is \`%s'\n" "${mpd_current_version}"  2>&1 | tee -a ${logfile}
+	printf "*** current debian version of mpd is \`%s'\n" \
+	       "${mpd_current_version}" 2>&1 | tee -a ${logfile}
 	
-	printf "*** uscanning for updates in current source directory \`%s' ... " "mpd-${mpd_current_version}"  2>&1 | tee -a ${logfile}
+	printf "*** uscanning for updates in current source directory \`%s' ... " \
+	       "mpd-${mpd_current_version}" 2>&1 | tee -a ${logfile}
 	cd ${mpd_current_source} && \
 	    uscan_out="$(uscan --verbose 2>&1 | tee -a ${logfile})"
 	if [[ $? -ne 0 ]]; then
@@ -83,21 +85,22 @@ else
 	    printf "*** mpd_newest_source = \`${mpd_newest_source}'\n"  2>&1 | tee -a ${logfile}
 	    if [[ "${mpd_current_version}" != "${mpd_newest_version}" ]]; then
 		printf "*** using uupdate to download and extract latest source ... " 2>&1 | tee -a ${logfile}
-		res=$(uupdate --upstream-version "${mpd_newest_version}" ../${mpd_newest_source}.tar.xz  2>&1 | tee -a ${logfile})
+		res=$(uupdate --upstream-version "${mpd_newest_version}" \
+			      ../${mpd_newest_source}.tar.xz >> ${logfile} 2>&1)
 		if [[ $? -ne 0 ]]; then
 		    printf "ERROR: \n\`%s'\n" "${res}"  2>&1 | tee -a ${logfile}
 		else
 		    printf "done.\n" 2>&1 | tee -a ${logfile}
 		    printf "*** building new binary in directory \`%s' ..." "../${mpd_newest_source}"  2>&1 | tee -a ${logfile}
 		    cd ../${mpd_newest_source} && \
-			res=$(debuild binary 2>&1 >> ${logfile})
+			res=$(debuild binary >> ${logfile} 2>&1)
 		    if [[ $? -ne 0 ]]; then
 			printf "ERROR: \n\`%s'\n" "${res}" 2>&1 | tee -a ${logfile}
 		    else
 			printf "done.\n" 2>&1 | tee -a ${logfile}
 			printf "resulting package:\n%s\n" "$(ls ~/mpd_*.deb)" 2>&1 | tee -a ${logfile}
 			## clean the packages cache
-			apt-get clean  2>&1 | tee -a ${logfile}
+			apt-get clean >> ${logfile} 2>&1
 			## shutdown the chroot
 			halt
 		    fi

@@ -18,13 +18,13 @@
 ##  You should have received a copy of the GNU General Public License
 ##  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ##
-## The script, helpers and documentation are published at 
+## The main and helper scripts and documentation are published at 
 ## https://github.com/ronalde/build-latest-mpd-for-debian
 ## 
-## Apart from a fairly recent versions of debootstrap and systemd, no
-## additional packages are required for the build environment. When
-## you use debian or ubuntu as your build enviroment, you should have
-## a look at git-buildpackage.
+## Apart from a fairly recent versions of debootstrap, systemd and
+## wget or curl, no additional packages are required for the build
+## environment. When you use debian or ubuntu as your build
+## enviroment, you should have a look at git-buildpackage.
 ##
 ## The script depends on the external script
 ## `build-latest-debian-mpd-package', which should be available in the
@@ -35,7 +35,8 @@
 LANG=C
 
 appname="build-latest-mpd-for-debian"
-debchroot_mirror="http://ftp.nl.debian.org/debian"
+debchroot_mirror="http://ftp.debian.org/debian"
+## or use local apt cacher like approx
 #debchroot_mirror="http://localnet:9999/debian"
 debchroot_version="jessie"
 debchroot_arch="amd64"
@@ -60,19 +61,20 @@ function create_chroot {
 	--variant=${debchroot_variant} \
 	${debchroot_version} \
 	${debchroot_targetdir} \
-	"${debchroot_mirror}")"  2>&1 >> ${logfile}
+	"${debchroot_mirror}" >> ${logfile} 2>&1)" 
     if [[ $? -ne 0 ]]; then
-	printf "ERROR:\n%s\n" "${res}"  2>&1 | tee -a ${logfile}
+	printf "ERROR:\n%s\n" "${res}" 2>&1 | tee -a ${logfile}
 	exit 1
     else
-	printf "done.\n"   2>&1 | tee -a ${logfile}
+	printf "done.\n" 2>&1 | tee -a ${logfile}
     fi
 }
 
 function download_helper_script {
-    ## get the latest version of the helper script
+    ## get the latest version of the helper script using wget or curl
     
-    wget -q "${url}" -O "${helper_script_downloadtarget}" || curl -s -k -o "${helper_script_downloadtarget}" "${url}"
+    wget -q "${url}" -O "${helper_script_downloadtarget}" >> ${logfile} 2>&1 || \
+	curl -s -k -o "${helper_script_downloadtarget}" "${url}" >> ${logfile} 2>&1
 
 }
 
@@ -80,31 +82,33 @@ function install_helper_script {
     ## install the helper script inside the chroot, add it to profile
     ## and set autologon
 
-    printf "downloading helper script from repository ..."  2>&1 | tee -a ${logfile}
-    res=$(download_helper_script 2>&1 | tee -a ${logfile})
-    if [[ $? -ne 0]]; then
-	printf "\nerror: could not download the the helper script from \n%s\n" "${url}"
+    printf "downloading helper script from repository ..." 2>&1 | tee -a ${logfile}
+    res=$(download_helper_script)
+    if [[ $? -ne 0 ]]; then
+	printf "\nerror: could not download the the helper script from \n%s\n" \
+	       "${url}" 2>&1 | tee -a ${logfile}
 	exit 1
     else  
-	printf "done.\n"  2>&1 | tee -a ${logfile}
-	printf "**  installing the mpd builder script \`%s' inside the chroot ... " "${helper_script_name}"  2>&1 | tee -a ${logfile}
+	printf "done.\n" 2>&1 | tee -a ${logfile}
+	printf "**  installing the mpd builder script \`%s' inside the chroot ... " \
+	       "${helper_script_name}" 2>&1 | tee -a ${logfile}
 	
-	res=$(install --mode=0555 "${helper_script_downloadtarget}" "${debchroot_targetdir}${helper_script_path}")
+	res=$(install --mode=0555 "${helper_script_downloadtarget}" "${debchroot_targetdir}${helper_script_path}"  >> ${logfile} 2>&1)
 	if [[ $? -ne 0 ]]; then
-	    printf "ERROR:\n%s\n" "${res}"  2>&1 | tee -a ${logfile}
+	    printf "ERROR:\n%s\n" "${res}" 2>&1 | tee -a ${logfile}
 	    exit 1
 	else
-	    printf "done.\n"  2>&1 | tee -a ${logfile}
+	    printf "done.\n" 2>&1 | tee -a ${logfile}
 	fi
 	dotprofile="${debchroot_targetdir}/root/.profile"
 	printf "**  insert the script in to \`%s' ... " "${dotprofile}" 2>&1 | tee -a ${logfile}
 	echo "${helper_script_path}/${helper_script_name}" > ${dotprofile}
-	printf "done.\n"  2>&1 | tee -a ${logfile}
+	printf "done.\n" 2>&1 | tee -a ${logfile}
 	
 	printf "**  setting autologin for root inside chroot ... " 2>&1 | tee -a ${logfile}
 	console_getty=${debchroot_targetdir}/lib/systemd/system/console-getty.service
 	sed -i 's#^ExecStart.*#ExecStart=-/sbin/agetty --autologin root --noclear --keep-baud console 115200,38400,9600 $TERM#' "${console_getty}"
-	printf "done.\n"  2>&1 | tee -a ${logfile}
+	printf "done.\n" 2>&1 | tee -a ${logfile}
     fi
     
 }
@@ -114,9 +118,9 @@ function spawn_chroot {
     ## try to copy the created mpd package in the chroot to the build
     ## environment; eg. this host.
     
-    printf "**  spawning the chroot.\n" 2>&1 | tee -a ${logfile}
+    printf "**  spawning the chroot.\n" 2>&1 | tee -a ${logfile} 
     ## boot the chroot
-    systemd-nspawn -bD "${debchroot_targetdir}"
+    systemd-nspawn -bD "${debchroot_targetdir}" 2>&1 | tee -a ${logfile}
     printf "**  done spawning.\n" 2>&1 | tee -a ${logfile}
     ## get the created mpd package
     package_path="$(find "${debchroot_targetdir}/root" -name 'mpd_*.deb')"
@@ -124,13 +128,16 @@ function spawn_chroot {
 	printf "error: could not find a package in \`%s'.\n" "${package_path}" 2>&1 | tee -a ${logfile}
     else
 	package_name="$(basename "${package_path}")"
-	res=$(cp ${package_path} ./)
+	res=$(cp ${package_path} ./2>&1 | tee -a ${logfile})
 	if [[ $? -ne 0 ]]; then
 	    printf "error: could not copy package from \`%s'.\n" 2>&1 | tee -a ${logfile}
-	    printf "inspect the chroot by running: \`%s'\n" "systemd-nspawn -bD "${debchroot_targetdir}"" 2>&1 | tee -a ${logfile}
+	    printf "inspect the chroot by running: \`%s'\n" \
+		   "systemd-nspawn -bD "${debchroot_targetdir}"" 2>&1 | tee -a ${logfile}
 	else
-	    printf "**  all done; the resulting package is copied locally to:\n%s\n\n" "./${package_name}" 2>&1 | tee -a ${logfile}
-	    printf "(you may delete the chroot \`%s')\n" "./${debchroot_targetdir}" 2>&1 | tee -a ${logfile}
+	    printf "**  all done; the resulting package is copied locally to:\n%s\n\n" \
+		   "./${package_name}"  2>&1 | tee -a ${logfile}
+	    printf "(you may delete the chroot \`%s')\n" \
+		   "./${debchroot_targetdir}" 2>&1 | tee -a ${logfile}
 	fi
     fi
        
@@ -158,14 +165,14 @@ else
     logfile=$(mktemp --tmpdir "${scriptname}.XXXX")
 
     ## start logging
-    printf "starting %s at %s\n" "${scriptname}" "$(date)" 2>&1 | tee ${logfile}
-    printf "**  logging to \`%s'.\n" "${logfile}" 2>&1 | tee -a ${logfile}
-    printf "**  creating a new temporary debchroot_targetdir.\n"  2>&1 | tee -a ${logfile}
+    printf "starting %s at %s\n" "${scriptname}" "$(date)" 2>&1 | tee ${logfile} 
+    printf "**  logging to \`%s'.\n" "${logfile}" 2>&1 | tee -a ${logfile} 
+    printf "**  creating a new temporary debchroot_targetdir.\n" 2>&1 | tee -a ${logfile} 
     debchroot_targetdir="$(mktemp -d ${tempchroot_template})"
     if [[ $? -ne 0 ]]; then
 	printf "ERROR:\n%s\n" "${debchroot_targetdir}" 2>&1 | tee -a ${logfile}
     else
-	printf "**  debchroot_targetdir is \`%s'.\n" "${debchroot_targetdir}"  2>&1 | tee -a ${logfile}
+	printf "**  debchroot_targetdir is \`%s'.\n" "${debchroot_targetdir}" 2>&1 | tee -a ${logfile}
 	create_chroot && \
 	    install_helper_script && \
 	    spawn_chroot
